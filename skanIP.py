@@ -4,7 +4,7 @@ import os
 import subprocess
 import time
 
-def get_network():
+def get_network(): #komentarz  raz dwa trzy
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(("8.8.8.8", 80))
