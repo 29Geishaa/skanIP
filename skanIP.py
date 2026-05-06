@@ -4,6 +4,7 @@ import os
 import subprocess
 import time
 
+# przeniesiony komentarz
 def get_network():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
