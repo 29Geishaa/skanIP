@@ -6,6 +6,7 @@ import time
 
 def get_network(): #komentarz  raz dwa trzy
     # a to jest moj komentarz 4 5 6
+    # a to jest moj komentarz 4 5 6
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(("8.8.8.8", 80))
