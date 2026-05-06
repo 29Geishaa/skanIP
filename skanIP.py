@@ -4,6 +4,7 @@ import os
 import subprocess
 import time
 
+# przeniesiony komentarz
 def get_network(): #komentarz  raz dwa trzy
     # a to jest moj komentarz 4 5 6
     # a to jest moj komentarz 4 5 6
