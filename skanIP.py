@@ -39,18 +39,23 @@ def format_table(results):
     header = f"{'NR':<4} | {'ADRES IP':<15} | {'STATUS':<6} | {'MAC'}"
     print(header)
     print("-" * len(header))
-    for res in results:
-        print(f"{res['nr']:<4} | {res['ip']:<15} | {res['status']:<6} | {res['mac']}")
-
-def scan_hosts(net, timeout, json_file=None):
-    print(f"Skanowanie sieci: {net}\n")
     
+    found_any = False
+    for res in results:
+        if res['status'] == "UP":
+            print(f"{res['nr']:<4} | {res['ip']:<15} | {res['status']:<6} | {res['mac']}")
+            found_any = True
+            
+    if not found_any:
+        print("Nie znaleziono aktywnych urządzeń w podanym zakresie.")
+
+def scan_hosts(net, timeout):
     hosts_to_check = []
     for nr, ip in enumerate(net.hosts(), 1):
         hosts_to_check.append((nr, str(ip), timeout))
     
     results = []
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    with ThreadPoolExecutor(max_workers=30) as executor:
         def check(info):
             nr, ip_str, t = info
             if is_host_alive(ip_str, t):
@@ -58,38 +63,38 @@ def scan_hosts(net, timeout, json_file=None):
             return {"nr": nr, "ip": ip_str, "status": "DOWN", "mac": "-"}
         
         results = list(executor.map(check, hosts_to_check))
-
-    format_table(results)
-
-    if json_file:
-        try:
-            with open(json_file, 'w', encoding='utf-8') as f:
-                json.dump(results, f, indent=4, ensure_ascii=False)
-            print(f"\n[+] Wyniki zapisano do pliku: {json_file}")
-        except Exception as e:
-            print(f"\nBłąd zapisu JSON: {e}")
+    return results
 
 def main():
-    parser = argparse.ArgumentParser(description="Skaner sieci")
+    parser = argparse.ArgumentParser(description="Skaner sieci zgodny z TASKS.md")
     subparsers = parser.add_subparsers(dest="command")
 
     scan_parser = subparsers.add_parser("scan")
-    scan_parser.add_argument("network", help="Adres sieci CIDR")
-    scan_parser.add_argument("--timeout", type=float, default=0.5)
+    scan_parser.add_argument("network", nargs='?', help="Adres sieci CIDR (np. 192.168.1.0/24)")
+    scan_parser.add_argument("--timeout", type=float, default=0.4)
     scan_parser.add_argument("--json", type=str)
-
-    if len(sys.argv) == 1:
-        parser.print_help()
-        sys.exit(0)
 
     args = parser.parse_args()
 
     if args.command == "scan":
+        target_net = args.network
+        if not target_net:
+            target_net = str(detect_network())
+        
         try:
-            net = ipaddress.IPv4Network(args.network, strict=False)
-            scan_hosts(net, args.timeout, args.json)
+            net = ipaddress.IPv4Network(target_net, strict=False)
+            print(f"Skanowanie sieci: {net} \n")
+            
+            results = scan_hosts(net, args.timeout)
+            format_table(results)
+
+            if args.json:
+                with open(args.json, 'w', encoding='utf-8') as f:
+                    json.dump(results, f, indent=4, ensure_ascii=False)
+                print(f"\n[+] Pełny raport zapisano do: {args.json}")
+                
         except ValueError:
-            print(f"Błąd: Niepoprawny zakres.")
+            print("Błąd: Niepoprawny format sieci.")
             sys.exit(1)
     else:
         parser.print_help()
