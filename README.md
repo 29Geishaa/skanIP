@@ -20,7 +20,7 @@ python3 skanIP.py scan [ZAKRES_SIECI] [OPCJE]
 
 ## Przykładowy wynik
 
-```   **Tabela w terminalu:**
+ **Tabela w terminalu:**
 Skanowanie sieci: 192.168.1.0/24
 ```
 NR   | ADRES IP        | STATUS | MAC
@@ -28,7 +28,6 @@ NR   | ADRES IP        | STATUS | MAC
 1    | 192.168.1.1     | UP     | 98:41:5c:3e:a2:ef
 2    | 192.168.1.2     | DOWN   | -
 3    | 192.168.1.3     | UP     | 70:4f:57:18:a4:c3
-```
 ```
 
 *   **Wynik w formacie JSON:**
