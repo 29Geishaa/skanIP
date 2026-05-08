@@ -1,94 +1,65 @@
 import socket
 import ipaddress
-import os
 import subprocess
-import time
-import argparse
 import json
 import sys
+import argparse
 from concurrent.futures import ThreadPoolExecutor
-import os
 
-def make_files():
-    # Pobiera ścieżkę do katalogu domowego użytkownika
-    home_dir = os.path.expanduser("~")
-    
-    for i in range(10000, 10111):
-        nazwa_pliku = f"{i}.txt"
-        # Łączy ścieżkę katalogu z nazwą pliku
-        sciezka_pelna = os.path.join(f'{home_dir}/Desktop', nazwa_pliku)
-        
-        try:
-            with open(sciezka_pelna, 'w', encoding='utf-8') as plik:
-                plik.write(f"To jest plik numer {i}")
-        except OSError as e:
-            print(f"Błąd: {e}")
-
-def get_network():
+def detect_network():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
-        make_files()
     finally:
         s.close()
     return ipaddress.IPv4Network(ip + "/24", strict=False)
 
-def ping(ip, timeout=1):
+def is_host_alive(ip, timeout=0.5):
     try:
-        result = subprocess.run(
-            ["ping", "-c", "1", "-W", str(timeout), ip],
-            capture_output=True,
-            text=True,
-            check=False
-        )
+        command = ["ping", "-c", "1", "-W", str(timeout), str(ip)]
+        result = subprocess.run(command, capture_output=True, text=True, shell=False)
         return result.returncode == 0
-    except FileNotFoundError:
-        print("\nBłąd: Program 'ping' nie jest zainstalowany w systemie.")
-        sys.exit(1)
     except Exception:
         return False
 
 def get_mac(ip):
     try:
-        output = subprocess.check_output(
-            ["ip", "neigh"], 
-            stderr=subprocess.DEVNULL,
-            text=True
-        )
+        output = subprocess.check_output(["ip", "neigh"], stderr=subprocess.DEVNULL, text=True, shell=False)
         for line in output.split("\n"):
-            if ip in line:
+            if str(ip) in line:
                 parts = line.split()
                 if len(parts) >= 5:
                     return parts[4]
-    except FileNotFoundError:
-        return "N/A"
     except:
         pass
     return "N/A"
 
-def check_host(ip_info):
-    nr, ip_str, timeout = ip_info
-    if ping(ip_str, timeout):
-        mac = get_mac(ip_str)
-        return {"nr": nr, "ip": ip_str, "status": "UP", "mac": mac}
-    else:
-        return {"nr": nr, "ip": ip_str, "status": "DOWN", "mac": "-"}
-
-def scan_network(net, timeout, json_file=None):
-    print(f"Skanowanie sieci: {net}\n")
-    
+def format_table(results):
     header = f"{'NR':<4} | {'ADRES IP':<15} | {'STATUS':<6} | {'MAC'}"
     print(header)
     print("-" * len(header))
+    for res in results:
+        print(f"{res['nr']:<4} | {res['ip']:<15} | {res['status']:<6} | {res['mac']}")
 
-    hosts_to_check = [(nr, str(ip), timeout) for nr, ip in enumerate(net.hosts(), 1)]
+def scan_hosts(net, timeout, json_file=None):
+    print(f"Skanowanie sieci: {net}\n")
+    
+    hosts_to_check = []
+    for nr, ip in enumerate(net.hosts(), 1):
+        hosts_to_check.append((nr, str(ip), timeout))
+    
     results = []
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        def check(info):
+            nr, ip_str, t = info
+            if is_host_alive(ip_str, t):
+                return {"nr": nr, "ip": ip_str, "status": "UP", "mac": get_mac(ip_str)}
+            return {"nr": nr, "ip": ip_str, "status": "DOWN", "mac": "-"}
+        
+        results = list(executor.map(check, hosts_to_check))
 
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        for result in executor.map(check_host, hosts_to_check):
-            results.append(result)
-            print(f"{result['nr']:<4} | {result['ip']:<15} | {result['status']:<6} | {result['mac']}")
+    format_table(results)
 
     if json_file:
         try:
@@ -96,16 +67,16 @@ def scan_network(net, timeout, json_file=None):
                 json.dump(results, f, indent=4, ensure_ascii=False)
             print(f"\n[+] Wyniki zapisano do pliku: {json_file}")
         except Exception as e:
-            print(f"\nBłąd zapisu pliku JSON: {e}")
+            print(f"\nBłąd zapisu JSON: {e}")
 
 def main():
     parser = argparse.ArgumentParser(description="Skaner sieci")
     subparsers = parser.add_subparsers(dest="command")
 
     scan_parser = subparsers.add_parser("scan")
-    scan_parser.add_argument("network", help="Adres sieci w formacie CIDR (np. 192.168.1.0/24)")
-    scan_parser.add_argument("--timeout", type=float, default=0.5, help="Czas oczekiwania na odpowiedź (sekundy)")
-    scan_parser.add_argument("--json", type=str, help="Opcjonalny zapis do pliku JSON")
+    scan_parser.add_argument("network", help="Adres sieci CIDR")
+    scan_parser.add_argument("--timeout", type=float, default=0.5)
+    scan_parser.add_argument("--json", type=str)
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -114,19 +85,12 @@ def main():
     args = parser.parse_args()
 
     if args.command == "scan":
-        if args.timeout <= 0:
-            print("Błąd: Timeout musi być liczbą dodatnią.")
-            sys.exit(1)
-
         try:
             net = ipaddress.IPv4Network(args.network, strict=False)
-            scan_network(net, args.timeout, args.json)
+            scan_hosts(net, args.timeout, args.json)
         except ValueError:
-            print(f"Błąd: '{args.network}' nie jest poprawnym zakresem sieci.")
+            print(f"Błąd: Niepoprawny zakres.")
             sys.exit(1)
-        except KeyboardInterrupt:
-            print("\nPrzerwano przez użytkownika.")
-            sys.exit(0)
     else:
         parser.print_help()
 
