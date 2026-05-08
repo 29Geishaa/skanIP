@@ -1,7 +1,7 @@
 # Network Scanner IP
 
 ## Opis celu programu
-Program służy do prostego skanowania sieci lokalnej, aby sprawdzić jakie urządzenia są aktualnie aktywne w danej sieci. Aplikacja pokazuje adres IP urządzenia, jego status (UP/DOWN) oraz adres MAC. Można też zapisać wyniki w formacie JSON. Skrypt działa z użyciem poleceń systemowych i został napisany w Pythonie.
+Program służy do prostego skanowania sieci lokalnej, aby sprawdzić jakie urządzenia są aktualnie aktywne w danej sieci. Aplikacja pokazuje adres IP urządzenia, jego status (UP) oraz adres MAC. Można też zapisać wyniki w formacie JSON. Skrypt działa z użyciem poleceń systemowych i został napisany w Pythonie.
 
 ## Wymagania
 *   **System operacyjny**: Linux.
@@ -26,7 +26,7 @@ Skanowanie sieci: 192.168.1.0/24
 NR   | ADRES IP        | STATUS | MAC
 --------------------------------------------------
 1    | 192.168.1.1     | UP     | 98:41:5c:3e:a2:ef
-2    | 192.168.1.2     | DOWN   | -
+2    | 192.168.1.2     | UP     | a4:93:4c:81:dd:a1
 3    | 192.168.1.3     | UP     | 70:4f:57:18:a4:c3
 ```
 
@@ -41,7 +41,7 @@ NR   | ADRES IP        | STATUS | MAC
     {
         "nr": 2,
         "ip": "192.168.1.2",
-        "status": "DOWN",
-        "mac": " - "
+        "status": "UP",
+        "mac": "a4:93:4c:81:dd:a1"
     }
 ```
