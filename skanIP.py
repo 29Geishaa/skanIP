@@ -5,6 +5,7 @@ import subprocess
 import time
 import argparse
 import json
+import sys
 from concurrent.futures import ThreadPoolExecutor
 import os
 
@@ -34,16 +35,34 @@ def get_network():
     return ipaddress.IPv4Network(ip + "/24", strict=False)
 
 def ping(ip, timeout=1):
-    return os.system(f"ping -c 1 -W {timeout} {ip} > /dev/null 2>&1") == 0
+    try:
+        result = subprocess.run(
+            ["ping", "-c", "1", "-W", str(timeout), ip],
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        return result.returncode == 0
+    except FileNotFoundError:
+        print("\nBłąd: Program 'ping' nie jest zainstalowany w systemie.")
+        sys.exit(1)
+    except Exception:
+        return False
 
 def get_mac(ip):
     try:
-        output = subprocess.check_output("ip neigh", shell=True, stderr=subprocess.DEVNULL).decode()
+        output = subprocess.check_output(
+            ["ip", "neigh"], 
+            stderr=subprocess.DEVNULL,
+            text=True
+        )
         for line in output.split("\n"):
             if ip in line:
                 parts = line.split()
                 if len(parts) >= 5:
                     return parts[4]
+    except FileNotFoundError:
+        return "N/A"
     except:
         pass
     return "N/A"
@@ -77,25 +96,39 @@ def scan_network(net, timeout, json_file=None):
                 json.dump(results, f, indent=4, ensure_ascii=False)
             print(f"\n[+] Wyniki zapisano do pliku: {json_file}")
         except Exception as e:
-            print(f"\n[!] Błąd zapisu JSON: {e}")
+            print(f"\nBłąd zapisu pliku JSON: {e}")
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Skaner sieci")
     subparsers = parser.add_subparsers(dest="command")
 
     scan_parser = subparsers.add_parser("scan")
-    scan_parser.add_argument("network")
-    scan_parser.add_argument("--timeout", type=float, default=0.5)
-    scan_parser.add_argument("--json", type=str)
+    scan_parser.add_argument("network", help="Adres sieci w formacie CIDR (np. 192.168.1.0/24)")
+    scan_parser.add_argument("--timeout", type=float, default=0.5, help="Czas oczekiwania na odpowiedź (sekundy)")
+    scan_parser.add_argument("--json", type=str, help="Opcjonalny zapis do pliku JSON")
+
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(0)
 
     args = parser.parse_args()
 
     if args.command == "scan":
+        if args.timeout <= 0:
+            print("Błąd: Timeout musi być liczbą dodatnią.")
+            sys.exit(1)
+
         try:
             net = ipaddress.IPv4Network(args.network, strict=False)
             scan_network(net, args.timeout, args.json)
-        except ValueError as e:
-            print(f"Błąd: {e}")
+        except ValueError:
+            print(f"Błąd: '{args.network}' nie jest poprawnym zakresem sieci.")
+            sys.exit(1)
+        except KeyboardInterrupt:
+            print("\nPrzerwano przez użytkownika.")
+            sys.exit(0)
+    else:
+        parser.print_help()
 
 if __name__ == "__main__":
     main()
