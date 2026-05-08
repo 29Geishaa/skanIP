@@ -32,7 +32,9 @@ NR   | ADRES IP        | STATUS | MAC
 
 *   **Wynik w formacie JSON:**
 ```
+
      {
+    {
         "nr": 1,
         "ip": "192.168.1.1",
         "status": "UP",
